@@ -50,6 +50,7 @@ import type { UserReviewType } from 'amo/actions/reviews';
 import type { UserType } from 'amo/reducers/users';
 import type { DispatchFunc } from 'core/types/redux';
 import type {
+  ReactRouterHistoryType,
   ReactRouterLocationType,
   ReactRouterMatchType,
 } from 'core/types/router';
@@ -60,6 +61,7 @@ import './styles.scss';
 
 type Props = {|
   location: ReactRouterLocationType,
+  history: ReactRouterHistoryType,
   match: {|
     ...ReactRouterMatchType,
     params: {| userId: string |},
@@ -132,7 +134,7 @@ export class UserProfileBase extends React.Component<InternalProps> {
       dispatch(
         fetchUserReviews({
           errorHandlerId: errorHandler.id,
-          page: this.getReviewsPage(location),
+          page: this.getReviewsPage(location, reviews),
           userId: user.id,
         }),
       );
@@ -169,7 +171,7 @@ export class UserProfileBase extends React.Component<InternalProps> {
       dispatch(
         fetchUserReviews({
           errorHandlerId: errorHandler.id,
-          page: this.getReviewsPage(newLocation),
+          page: this.getReviewsPage(newLocation, reviews),
           userId: user.id,
         }),
       );
@@ -204,8 +206,26 @@ export class UserProfileBase extends React.Component<InternalProps> {
     return `${this.getURL()}edit/`;
   }
 
-  getReviewsPage(location: ReactRouterLocationType): string {
-    return (location.query && location.query.page) || '1';
+  getReviewsPage(location: ReactRouterLocationType, reviews: Array<UserReviewType>): string {
+      const currentPageNum = parseInt(location.query.page, 10);
+
+      if (Number.isNaN(currentPageNum) || currentPageNum <= 1) {
+        return '1';
+      }
+
+      // If reviews array is null at this point then need to transition to previous page
+      if (reviews === null ) {
+        this.props.history.push({
+          pathname: location.pathname,
+          query: {
+            page: (currentPageNum - 1).toString(),
+          }
+        });
+
+        return (currentPageNum - 1).toString();
+      }
+
+      return currentPageNum.toString();
   }
 
   renderReviews() {
@@ -227,7 +247,7 @@ export class UserProfileBase extends React.Component<InternalProps> {
         <Paginate
           LinkComponent={Link}
           count={reviewCount}
-          currentPage={this.getReviewsPage(location)}
+          currentPage={this.getReviewsPage(location, reviews)}
           pathname={this.getURL()}
           perPage={Number(pageSize)}
           queryParams={location.query}
